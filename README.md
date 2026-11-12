@@ -35,7 +35,7 @@ iPhone では Safari とホーム画面アプリでログイン状態が別に�
 
 ホーム画面のアプリを開き、「つうちを オン にする」を押すと、その端末に通知が届くようになります。iPhone では、ホーム画面に追加したアプリでのみ使えます（iOS 16.4 以降）。
 
-Edge Function `push` には次のシークレットが必要です: `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` / `WEBHOOK_SECRET`。JWT 検証はオフにします（代わりに `x-webhook-secret` で認証します）。
+Edge Function `push` には次のシークレットが必要です: `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` / `WEBHOOK_SECRET`。呼び出しは JWT 検証（legacy の anon キー）と `x-webhook-secret` の両方で確認します。
 
 ## 対応端末
 
