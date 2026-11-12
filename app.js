@@ -53,6 +53,10 @@ if (SUPABASE_URL.includes('YOUR-PROJECT')) {
   throw new Error('config.js が未設定です');
 }
 
+// 登録確認メールのリンクから来たかどうか (URL は Supabase が読み取ったあと消えるので先に見ておく)
+const cameFromEmail = /access_token=|type=signup|[?&]code=/.test(location.hash + location.search);
+const emailLinkError = /error_description=([^&]+)/.exec(location.hash + location.search);
+
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const state = { me: null, family: null, members: [], channels: [], onVisible: null };
 
@@ -68,9 +72,30 @@ function cleanup() {
   state.onVisible = null;
 }
 
+// iPhone では、メールのリンクは Safari で開く。ホーム画面のアプリとはログイン状態が別なので、
+// ここで続けさせず、アプリに戻ってログインするよう案内する
+function viewEmailConfirmed() {
+  show(h('div', { class: 'pad stack' },
+    h('h2', { class: 'center' }, '✅ メールの確認ができました'),
+    h('p', null, 'ホーム画面の「さくらトーク」をひらいて、登録したメールアドレスとパスワードでログインしてください。'),
+    h('p', { class: 'muted' }, 'この画面はとじてかまいません。'),
+    h('button', { class: 'big sub', onclick: () => { history.replaceState(null, '', location.pathname); boot(); } },
+      'この画面のまま つづける')));
+}
+
+let emailLandingShown = false;
+
 async function boot() {
   cleanup();
   const { data: { session } } = await sb.auth.getSession();
+  if (cameFromEmail && !emailLandingShown && navigator.standalone === false) {
+    emailLandingShown = true;
+    return viewEmailConfirmed();
+  }
+  if (emailLinkError && !emailLandingShown) {
+    emailLandingShown = true;
+    toast('メールのリンクが使えませんでした（期限切れなど）。もういちど登録するか、ログインをためしてください。');
+  }
   if (!session) return viewWelcome();
   const { data: me, error } = await sb.from('members').select('*').eq('user_id', session.user.id).maybeSingle();
   if (error) return show(h('div', { class: 'pad stack' },
@@ -136,7 +161,7 @@ function viewParentAuth() {
     await boot();
   });
   const signup = busy(async () => {
-    const { data, error } = await sb.auth.signUp(creds());
+    const { data, error } = await sb.auth.signUp({ ...creds(), options: { emailRedirectTo: new URL('./', location.href).href } });
     if (error) throw error;
     if (data.session) return boot();
     toast('確認メールを送りました。メールのリンクを開いたあと、ここでログインしてください。');
