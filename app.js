@@ -97,7 +97,32 @@ function viewWelcome() {
     h('p', { class: 'center muted' }, 'かぞくだけのメッセージ'),
     installHint(),
     h('button', { class: 'big', onclick: viewChildJoin }, 'こども（コードをいれる）'),
-    h('button', { class: 'big sub', onclick: viewParentAuth }, 'おとな（ログイン・登録）')));
+    h('button', { class: 'big sub', onclick: viewParentAuth }, 'おとな（ログイン・登録）'),
+    howTo()));
+}
+
+// 最初の画面に出す、かんたんな使い方
+function howTo() {
+  const steps = (items) => h('ol', null, items.map((t) => h('li', null, t)));
+  return h('div', { class: 'howto' },
+    h('h3', null, 'つかいかた'),
+    h('h4', null, 'おとな（さいしょの1回）'),
+    steps([
+      '「おとな」をおして、メールアドレスとパスワードを入れて「はじめて使う」をおす',
+      'とどいたメールのリンクをひらく',
+      'ここにもどってログインし、家族をつくる',
+      '「せってい」でこどもを追加して、招待コードを出す',
+    ]),
+    h('h4', null, 'こども'),
+    steps([
+      '「こども」をおす',
+      'おとなのスマホに出ている 8もじのコードを入れる',
+    ]),
+    h('h4', null, 'みんな'),
+    steps([
+      'ホームの「🔔 つうちを オン にする」をおす',
+      'なまえをおして、メッセージをおくる',
+    ]));
 }
 
 function viewParentAuth() {
