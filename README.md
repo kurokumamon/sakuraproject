@@ -10,6 +10,8 @@
 | `config.js` | Supabase の接続先 |
 | `sw.js` / `manifest.webmanifest` | ホーム画面アプリ化、プッシュ通知の受け口 |
 | `supabase/migrations/001_init.sql` | テーブル、アクセス制御、招待まわりの関数 |
+| `supabase/migrations/002_push.sql` | メッセージ追加時に通知用の関数を呼ぶトリガー |
+| `supabase/functions/push/index.ts` | プッシュ通知を送る Edge Function |
 
 ## セットアップ
 
@@ -29,11 +31,16 @@
 
 iPhone では Safari とホーム画面アプリでログイン状態が別になるため、必ずホーム画面のアイコンから開いて参加します。
 
+## プッシュ通知
+
+ホーム画面のアプリを開き、「つうちを オン にする」を押すと、その端末に通知が届くようになります。iPhone では、ホーム画面に追加したアプリでのみ使えます（iOS 16.4 以降）。
+
+Edge Function `push` には次のシークレットが必要です: `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` / `WEBHOOK_SECRET`。JWT 検証はオフにします（代わりに `x-webhook-secret` で認証します）。
+
 ## 対応端末
 
 iOS 16.4 以降（iPhone 8 を含む）、Android の Chrome。
 
 ## 未実装
 
-- プッシュ通知の送信（受け口の `sw.js` のみ実装済み）
 - ボイスメッセージ、通話、位置共有

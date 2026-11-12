@@ -39,6 +39,7 @@ button:disabled { opacity: .5; }
 .hint { background: #fff; border: 2px dashed #f8bbd0; border-radius: 12px; padding: 12px; font-size: 14px; }
 
 /* ホーム */
+.banner { flex: none; margin: 10px 12px; }
 .rows { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom); }
 .row {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;

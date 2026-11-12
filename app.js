@@ -1,6 +1,6 @@
 // さくらトーク: 家族専用メッセンジャー (ビルド不要の静的 PWA)
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC_KEY } from './config.js';
 
 const app = document.getElementById('app');
 const toastEl = document.getElementById('toast');
@@ -173,6 +173,60 @@ async function logout() {
   viewWelcome();
 }
 
+// ---------- プッシュ通知 ----------
+
+const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+function keyBytes(b64url) {
+  const b64 = (b64url + '='.repeat((4 - (b64url.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
+}
+
+// この端末の通知の宛先を登録する。許可ずみのときだけ呼ぶ
+async function savePushSubscription() {
+  const reg = await navigator.serviceWorker.ready;
+  const subscribe = () => reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID_PUBLIC_KEY) });
+  const save = (sub) => {
+    const j = sub.toJSON();
+    return sb.from('push_subscriptions').upsert(
+      { member_id: state.me.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth },
+      { onConflict: 'endpoint' });
+  };
+  let sub = (await reg.pushManager.getSubscription()) || (await subscribe());
+  let { error } = await save(sub);
+  if (error) {
+    // 同じ端末が以前べつのメンバーで登録されていた場合など。宛先を作り直して登録しなおす
+    await sub.unsubscribe();
+    sub = await subscribe();
+    ({ error } = await save(sub));
+    if (error) throw error;
+  }
+}
+
+// ホームの上に出す「通知をオンにする」ボタン。不要なら null
+function pushBanner() {
+  if (!pushSupported) return null;
+  if (Notification.permission === 'granted') {
+    savePushSubscription().catch(() => {}); // 宛先は変わることがあるので、開くたびに登録しなおす
+    return null;
+  }
+  if (Notification.permission === 'denied') {
+    return h('div', { class: 'hint banner' }, 'つうちが オフ になっています。iPhone の「設定」→「通知」→「さくらトーク」でオンにできます。');
+  }
+  const box = h('div', { class: 'banner' });
+  box.append(h('button', {
+    class: 'big',
+    onclick: busy(async () => {
+      const result = await Notification.requestPermission();
+      if (result !== 'granted') throw new Error('つうちが許可されませんでした');
+      await savePushSubscription();
+      box.remove();
+      toast('つうちを オン にしました');
+    }),
+  }, '🔔 つうちを オン にする'));
+  return box;
+}
+
 // ---------- ホーム (会話の一覧) ----------
 
 async function viewHome() {
@@ -184,6 +238,7 @@ async function viewHome() {
   show(
     h('header', { class: 'bar' }, title,
       me.role === 'parent' && h('button', { onclick: viewSettings }, 'せってい')),
+    pushBanner(),
     rows);
 
   async function load() {
