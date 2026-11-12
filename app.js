@@ -176,7 +176,7 @@ function viewParentAuth() {
 }
 
 function viewCreateFamily() {
-  const fam = h('input', { placeholder: '家族の名前（例: すがわら家）' });
+  const fam = h('input', { placeholder: '家族の名前（例: すずき家）' });
   const name = h('input', { placeholder: 'あなたの表示名（例: パパ）' });
   const create = busy(async () => {
     if (!fam.value.trim() || !name.value.trim()) throw new Error('両方入力してください');
