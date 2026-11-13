@@ -57,6 +57,10 @@ if (SUPABASE_URL.includes('YOUR-PROJECT')) {
 const cameFromEmail = /access_token=|type=signup|[?&]code=/.test(location.hash + location.search);
 const emailLinkError = /error_description=([^&]+)/.exec(location.hash + location.search);
 
+// 招待QRから開いたときの招待コード (?join=XXXXXXXX)
+const joinCode = new URLSearchParams(location.search).get('join');
+let joinTried = false;
+
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const state = { me: null, family: null, members: [], channels: [], onVisible: null };
 
@@ -96,11 +100,15 @@ async function boot() {
     emailLandingShown = true;
     toast('メールのリンクが使えませんでした（期限切れなど）。もういちど登録するか、ログインをためしてください。');
   }
-  if (!session) return viewWelcome();
+  if (!session) {
+    if (joinCode && !joinTried) return joinFromLink();
+    return viewWelcome();
+  }
   const { data: me, error } = await sb.from('members').select('*').eq('user_id', session.user.id).maybeSingle();
   if (error) return show(h('div', { class: 'pad stack' },
     h('p', null, 'つながりませんでした。'), h('p', { class: 'muted' }, errText(error)),
     h('button', { class: 'big', onclick: boot }, 'もういちど')));
+  if (!me && session.user.is_anonymous && joinCode && !joinTried) return joinFromLink();
   if (!me) return session.user.is_anonymous ? viewChildJoin() : viewCreateFamily();
   state.me = me;
   return viewHome();
@@ -191,6 +199,43 @@ function viewCreateFamily() {
     h('button', { class: 'small', onclick: logout }, 'ログアウト')));
 }
 
+// 招待コードで家族に参加する (こどもの端末はメールアドレスなしの匿名サインイン)
+async function joinWithCode(code) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) {
+    const { error } = await sb.auth.signInAnonymously();
+    if (error) throw error;
+  }
+  const { error } = await sb.rpc('redeem_invite', { invite_code: code });
+  if (error) throw error;
+}
+
+// 招待QRから開いたとき
+async function joinFromLink() {
+  // iPhone の Safari: ここで参加するとホーム画面のアプリに引きつがれないので、先に追加してもらう
+  if (navigator.standalone === false) {
+    return show(h('div', { class: 'pad stack' },
+      h('h2', { class: 'center' }, '🌸 さくらトーク'),
+      h('div', { class: 'howto' },
+        h('h3', null, 'あと 2つ で はじめられます'),
+        h('ol', null,
+          h('li', null, 'がめんの下の 共有ボタン（□に↑）をおして、「ホーム画面に追加」をえらぶ'),
+          h('li', null, 'ホーム画面にできた「さくらトーク」をひらく')),
+        h('p', { class: 'muted' }, 'ひらくと、じどうで かぞくに はいります。')),
+      h('button', { class: 'small', onclick: viewChildJoin }, 'コードを手で入れる')));
+  }
+  joinTried = true;
+  show(h('p', { class: 'center muted pad' }, 'かぞくに はいっています…'));
+  try {
+    await joinWithCode(joinCode);
+  } catch (e) {
+    viewChildJoin();
+    toast(errText(e) + '　おとなに あたらしいコードを 出してもらってください。');
+    return;
+  }
+  await boot();
+}
+
 function viewChildJoin() {
   const code = h('input', {
     placeholder: 'コード（8もじ）', maxlength: '8', autocapitalize: 'characters',
@@ -198,13 +243,7 @@ function viewChildJoin() {
   });
   const join = busy(async () => {
     if (code.value.trim().length < 8) throw new Error('コードは8もじです');
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) {
-      const { error } = await sb.auth.signInAnonymously();
-      if (error) throw error;
-    }
-    const { error } = await sb.rpc('redeem_invite', { invite_code: code.value });
-    if (error) throw error;
+    await joinWithCode(code.value);
     await boot();
   });
   show(h('div', { class: 'pad stack' },
@@ -552,13 +591,27 @@ async function viewSettings() {
   async function invite(m) {
     const { data, error } = await sb.rpc('create_invite', { target_member: m.id });
     if (error) throw error;
+    const qr = h('div', { class: 'qr' });
     codeBox.replaceChildren(
-      h('h3', null, `${m.display_name} の招待コード`),
+      h('h3', null, `${m.display_name} の招待`),
+      qr,
+      h('p', { class: 'muted center' }, '相手のスマホのカメラでこのQRを読みとります。読めないときは下のコードを入力します。'),
       h('div', { class: 'code' }, data),
       h('p', { class: 'muted' },
-        '相手の端末で「ホーム画面に追加」したアプリを開き、このコードを入力します。15分間・1回だけ有効です。',
+        '15分間・1回だけ有効です。',
         m.user_id ? ' 入力すると、いま使っている端末は使えなくなります。' : ''));
     codeBox.scrollIntoView({ behavior: 'smooth' });
+    // QR は外部ライブラリで作る。読みこめないときはコードだけ表示する
+    try {
+      const { default: qrcode } = await import('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/+esm');
+      const q = qrcode(0, 'M');
+      q.addData(new URL('./?join=' + data, location.href).href);
+      q.make();
+      qr.append(h('img', { src: q.createDataURL(6, 12), alt: '招待QRコード' }));
+      codeBox.scrollIntoView({ behavior: 'smooth' });
+    } catch (e) {
+      qr.remove();
+    }
   }
 
   const addMember = busy(async () => {

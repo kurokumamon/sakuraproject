@@ -10,6 +10,15 @@
   <meta name="apple-mobile-web-app-title" content="さくらトーク">
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="manifest" href="manifest.webmanifest">
+  <script>
+    // 招待QRから iPhone の Safari で開いたときは、manifest を外しておく。
+    // こうすると「ホーム画面に追加」したアイコンが招待コードつきの URL を覚えるので、
+    // アイコンから開いたときにそのまま参加できる。
+    if (new URLSearchParams(location.search).has('join') && navigator.standalone === false) {
+      var m = document.querySelector('link[rel="manifest"]');
+      if (m) m.remove();
+    }
+  </script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>

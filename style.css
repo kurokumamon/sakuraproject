@@ -102,3 +102,7 @@ button:disabled { opacity: .5; }
 .howto h3 { margin: 12px 0 0; color: #3b2a30; font-size: 17px; }
 .howto h4 { margin: 14px 0 4px; font-size: 15px; color: #f06292; }
 .howto ol { margin: 0; padding-left: 22px; font-size: 15px; line-height: 1.6; }
+
+/* 招待QR */
+.qr { text-align: center; }
+.qr img { width: 240px; height: 240px; image-rendering: pixelated; background: #fff; border-radius: 12px; }
