@@ -19,7 +19,8 @@ function h(tag, props, ...children) {
   for (const c of children.flat()) if (c != null && c !== false) el.append(c);
   return el;
 }
-const show = (...nodes) => app.replaceChildren(...nodes);
+// null / false は表示しない (replaceChildren に null を渡すと「null」という文字になる)
+const show = (...nodes) => app.replaceChildren(...nodes.filter((n) => n != null && n !== false));
 
 let toastTimer;
 function toast(msg) {
