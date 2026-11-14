@@ -14,7 +14,7 @@ body {
 .stack > * + * { margin-top: 14px; }
 
 header.bar {
-  flex: none; display: flex; align-items: center; gap: 8px;
+  flex: none; display: flex; align-items: center;
   padding: calc(env(safe-area-inset-top) + 10px) 12px 10px;
   background: #f48fb1; color: #fff;
 }
@@ -38,11 +38,17 @@ button:disabled { opacity: .5; }
 
 .hint { background: #fff; border: 2px dashed #f8bbd0; border-radius: 12px; padding: 12px; font-size: 14px; }
 
+/* flex の gap は iOS 14.1 から。古い iPhone のために余白で代わりにする */
+header.bar > * + * { margin-left: 8px; }
+.row > * + * { margin-left: 12px; }
+.composer > * + * { margin-left: 8px; }
+.member > * + * { margin-left: 10px; }
+
 /* ホーム */
 .banner { flex: none; margin: 10px 12px; }
 .rows { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom); }
 .row {
-  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  display: flex; align-items: center; width: 100%; text-align: left;
   padding: 14px 16px; background: #fff; border: 0; border-bottom: 1px solid #fbe3ea; color: inherit;
 }
 .avatar {
@@ -68,7 +74,7 @@ button:disabled { opacity: .5; }
 .meta { font-size: 11px; color: #9a858c; margin: 2px 6px 0; }
 
 .composer {
-  flex: none; display: flex; align-items: flex-end; gap: 8px;
+  flex: none; display: flex; align-items: flex-end;
   padding: 8px 10px calc(env(safe-area-inset-bottom) + 8px); background: #fff; border-top: 1px solid #fbe3ea;
 }
 .composer textarea {
@@ -84,7 +90,7 @@ button:disabled { opacity: .5; }
 .composer input[type=file] { display: none; }
 
 /* 設定 */
-.member { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #fbe3ea; }
+.member { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #fbe3ea; }
 .member .main { flex: 1; }
 .code {
   font-size: 34px; font-weight: 700; letter-spacing: 4px; text-align: center;
