@@ -105,4 +105,12 @@ button:disabled { opacity: .5; }
 
 /* 招待QR */
 .qr { text-align: center; }
-.qr img { width: 240px; height: 240px; image-rendering: pixelated; background: #fff; border-radius: 12px; }
+.qr canvas { display: block; margin: 0 auto; border-radius: 12px; }
+
+/* スワイプで削除 */
+.swipe { position: relative; overflow: hidden; }
+.swipe-front { position: relative; background: #fff5f8; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.swipe-del {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0;
+  background: #e53935; color: #fff; font-size: 16px; font-weight: 700;
+}

@@ -564,10 +564,57 @@ async function viewChat(convId, title) {
   await load();
 }
 
+// ---------- スワイプで削除 ----------
+
+const DELETE_WIDTH = 88;
+let closeOpenSwipe = null; // ひらいている行はひとつだけ
+
+// 行を左にスワイプすると、うしろの「けす」ボタンが出る。ボタンをおすと onDelete
+function swipeToDelete(content, onDelete) {
+  const del = h('button', { class: 'swipe-del', onclick: onDelete }, 'けす');
+  content.classList.add('swipe-front');
+  const wrap = h('div', { class: 'swipe' }, del, content);
+
+  let startX = 0, startY = 0, base = 0, x = 0, dragging = false, decided = false;
+  const setX = (v, animate) => {
+    x = v;
+    content.style.transition = animate ? 'transform .2s' : 'none';
+    content.style.transform = `translateX(${v}px)`;
+  };
+  const close = () => { setX(0, true); if (closeOpenSwipe === close) closeOpenSwipe = null; };
+
+  content.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return;
+    dragging = true; decided = false;
+    startX = e.clientX; startY = e.clientY; base = x;
+  });
+  content.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (!decided) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      decided = true;
+      if (Math.abs(dy) > Math.abs(dx)) { dragging = false; return; } // たてのスクロール
+      if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe();
+      content.setPointerCapture(e.pointerId);
+    }
+    setX(Math.max(-DELETE_WIDTH - 20, Math.min(0, base + dx)), false);
+  });
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    if (x < -DELETE_WIDTH / 2) { setX(-DELETE_WIDTH, true); closeOpenSwipe = close; } else close();
+  };
+  content.addEventListener('pointerup', end);
+  content.addEventListener('pointercancel', end);
+  return wrap;
+}
+
 // ---------- 設定 (親のみ) ----------
 
 async function viewSettings() {
   cleanup();
+  closeOpenSwipe = null;
   const listEl = h('div');
   const codeBox = h('div');
   const name = h('input', { placeholder: 'なまえ（例: さくら）' });
@@ -579,13 +626,23 @@ async function viewSettings() {
     const { data, error } = await sb.from('members').select('id,display_name,role,user_id').order('created_at');
     if (error) return toast(errText(error));
     state.members = data;
-    listEl.replaceChildren(...data.map((m) =>
-      h('div', { class: 'member' },
+    listEl.replaceChildren(...data.map((m) => {
+      const row = h('div', { class: 'member' },
         h('div', { class: 'main' },
           h('div', null, m.display_name + (m.role === 'parent' ? '（おとな）' : '')),
-          h('div', { class: 'muted' }, m.user_id ? '参加ずみ' : 'まだ参加していません')),
+          h('div', { class: 'muted' }, m.user_id ? '参加ずみ' : 'まだ参加していません（左にスワイプでけせます）')),
         m.id !== state.me.id && h('button', { class: 'small', onclick: busy(() => invite(m)) },
-          m.user_id ? '端末を入れかえる' : '招待コード'))));
+          m.user_id ? '端末を入れかえる' : '招待コード'));
+      // まだ参加していない人だけ、スワイプで削除できる
+      if (m.user_id || m.id === state.me.id) return row;
+      return swipeToDelete(row, busy(async () => {
+        const { error: e } = await sb.rpc('remove_pending_member', { target_member: m.id });
+        if (e) throw e;
+        codeBox.replaceChildren();
+        toast(`${m.display_name} をけしました`);
+        await load();
+      }));
+    }));
   }
 
   async function invite(m) {
@@ -601,16 +658,13 @@ async function viewSettings() {
         '15分間・1回だけ有効です。',
         m.user_id ? ' 入力すると、いま使っている端末は使えなくなります。' : ''));
     codeBox.scrollIntoView({ behavior: 'smooth' });
-    // QR は外部ライブラリで作る。読みこめないときはコードだけ表示する
+    // QR はリポジトリ内のライブラリで作る (外部サイトに頼らない)。失敗したらコードだけ表示する
     try {
-      const { default: qrcode } = await import('https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/+esm');
-      const q = qrcode(0, 'M');
-      q.addData(new URL('./?join=' + data, location.href).href);
-      q.make();
-      qr.append(h('img', { src: q.createDataURL(6, 12), alt: '招待QRコード' }));
+      const { qrCanvas } = await import('./vendor/qrcode.js?v=1');
+      qr.append(qrCanvas(new URL('./?join=' + data, location.href).href, 240));
       codeBox.scrollIntoView({ behavior: 'smooth' });
     } catch (e) {
-      qr.remove();
+      qr.replaceChildren(h('p', { class: 'muted' }, 'QRを表示できませんでした。下のコードを入力してください。'));
     }
   }
 
