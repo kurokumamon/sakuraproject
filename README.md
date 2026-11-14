@@ -7,6 +7,9 @@
 | ファイル | 役割 |
 |---|---|
 | `index.html` / `style.css` / `app.js` | アプリ本体（`npm install` 不要） |
+| `lib/supa.js` | Supabase の最小クライアント（iOS 12 でも動くように supabase-js の代わりに自作） |
+| `lib/compat.js` | 古い Safari にない機能のおぎない |
+| `vendor/qrcode.js` | 招待QRの生成（Kazuhiko Arase, MIT） |
 | `config.js` | Supabase の接続先 |
 | `sw.js` / `manifest.webmanifest` | ホーム画面アプリ化、プッシュ通知の受け口 |
 | `supabase/migrations/001_init.sql` | テーブル、アクセス制御、招待まわりの関数 |
@@ -39,7 +42,10 @@ Edge Function `push` には次のシークレットが必要です: `VAPID_PUBLI
 
 ## 対応端末
 
-iOS 16.4 以降（iPhone 8 を含む）、Android の Chrome。
+iOS 12 以降、Android の Chrome。
+
+- プッシュ通知は iOS 16.4 以降のみ。それより古い iPhone では、アプリを開いている間だけメッセージが届く。
+- iOS 12 で動かすため、`?.` や `??` などの新しい構文と、iOS 12 にない API（`replaceChildren`、Pointer Events、flex の `gap` など）は使わない。追加したら `lib/compat.js` でおぎなう。
 
 ## 未実装
 

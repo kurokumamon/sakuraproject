@@ -1,5 +1,6 @@
 // さくらトーク: 家族専用メッセンジャー (ビルド不要の静的 PWA)
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { uuid } from './lib/compat.js?v=1'; // 古い iPhone 向けのおぎない (いちばん最初に読みこむ)
+import { createClient } from './lib/supa.js?v=1';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC_KEY } from './config.js';
 
 const app = document.getElementById('app');
@@ -417,8 +418,11 @@ async function shrink(file) {
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
-    img.src = url;
-    await img.decode();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error('しゃしんを読みこめませんでした'));
+      img.src = url;
+    });
     const s = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
     const c = document.createElement('canvas');
     c.width = Math.round(img.naturalWidth * s);
@@ -528,7 +532,7 @@ async function viewChat(convId, title) {
     try {
       toast('しゃしんを送っています…');
       const blob = await shrink(f);
-      const path = `${convId}/${crypto.randomUUID()}.jpg`;
+      const path = `${convId}/${uuid()}.jpg`;
       const { error } = await sb.storage.from('chat-images').upload(path, blob, { contentType: 'image/jpeg' });
       if (error) throw error;
       await send({ image_path: path });
@@ -570,43 +574,64 @@ const DELETE_WIDTH = 88;
 let closeOpenSwipe = null; // ひらいている行はひとつだけ
 
 // 行を左にスワイプすると、うしろの「けす」ボタンが出る。ボタンをおすと onDelete
+// iOS 12 には Pointer Events がないので、指はタッチイベント、マウスは Pointer/マウスイベントで扱う
 function swipeToDelete(content, onDelete) {
   const del = h('button', { class: 'swipe-del', onclick: onDelete }, 'けす');
   content.classList.add('swipe-front');
   const wrap = h('div', { class: 'swipe' }, del, content);
 
-  let startX = 0, startY = 0, base = 0, x = 0, dragging = false, decided = false;
+  let startX = 0, startY = 0, base = 0, x = 0, dragging = false, decided = false, horizontal = false;
   const setX = (v, animate) => {
     x = v;
-    content.style.transition = animate ? 'transform .2s' : 'none';
-    content.style.transform = `translateX(${v}px)`;
+    content.style.webkitTransition = content.style.transition = animate ? 'transform .2s' : 'none';
+    content.style.webkitTransform = content.style.transform = `translateX(${v}px)`;
   };
   const close = () => { setX(0, true); if (closeOpenSwipe === close) closeOpenSwipe = null; };
 
-  content.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('button')) return;
-    dragging = true; decided = false;
-    startX = e.clientX; startY = e.clientY; base = x;
-  });
-  content.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    const dx = e.clientX - startX, dy = e.clientY - startY;
+  const begin = (px, py, target) => {
+    if (target.closest('button')) return false;
+    dragging = true; decided = false; horizontal = false;
+    startX = px; startY = py; base = x;
+    return true;
+  };
+  // 横の動きと判断したら true (タッチのときはページのスクロールを止めるのに使う)
+  const move = (px, py) => {
+    if (!dragging) return false;
+    const dx = px - startX, dy = py - startY;
     if (!decided) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return false;
       decided = true;
-      if (Math.abs(dy) > Math.abs(dx)) { dragging = false; return; } // たてのスクロール
+      horizontal = Math.abs(dx) > Math.abs(dy);
+      if (!horizontal) { dragging = false; return false; } // たてのスクロール
       if (closeOpenSwipe && closeOpenSwipe !== close) closeOpenSwipe();
-      content.setPointerCapture(e.pointerId);
     }
     setX(Math.max(-DELETE_WIDTH - 20, Math.min(0, base + dx)), false);
-  });
+    return true;
+  };
   const end = () => {
     if (!dragging) return;
     dragging = false;
     if (x < -DELETE_WIDTH / 2) { setX(-DELETE_WIDTH, true); closeOpenSwipe = close; } else close();
   };
-  content.addEventListener('pointerup', end);
-  content.addEventListener('pointercancel', end);
+
+  content.addEventListener('touchstart', (e) => {
+    const t = e.touches[0];
+    begin(t.clientX, t.clientY, e.target);
+  }, { passive: true });
+  content.addEventListener('touchmove', (e) => {
+    const t = e.touches[0];
+    if (move(t.clientX, t.clientY)) e.preventDefault();
+  }, { passive: false });
+  content.addEventListener('touchend', end);
+  content.addEventListener('touchcancel', end);
+
+  if (window.PointerEvent) {
+    content.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && begin(e.clientX, e.clientY, e.target)) content.setPointerCapture(e.pointerId);
+    });
+    content.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') move(e.clientX, e.clientY); });
+    content.addEventListener('pointerup', (e) => { if (e.pointerType === 'mouse') end(); });
+  }
   return wrap;
 }
 
