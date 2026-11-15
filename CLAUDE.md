@@ -43,13 +43,13 @@
 - できている: 親の登録・家族作成、招待QR／コードでの子供参加（QR から開いてホーム画面に追加すると自動参加）、1対1・家族グループのチャット、写真、既読、通知（iOS 16.4+）、未参加メンバーのスワイプ削除、最初の画面の使い方
 - 親は実機でログイン済み。子供の端末はこれから参加
 
-## ビデオ通話（作業ブランチ `claude/kind-gates-v8ykzh`、main には未マージ）
+## ビデオ通話
 
 できていること（本番 Supabase ＋ Chromium 2台で確認済み）: 1対1のトークの 📹/📞 ボタン → かける画面 → 相手のアプリに着信画面（Realtime）→ 両方が通話ページ（`target=_blank` で Safari）で双方向ビデオ、再読み込みしても再接続、切ると相手も終了、出ない/取り消し/60秒で不在。
 
 残り:
-- 通話ページは Cloudflare Pages `sakuratalk-call`（GitHub 連携、ビルド `sh scripts/build-call.sh`、出力 `dist-call`）で https://sakuratalk-call.pages.dev/ に公開済み。push すると自動でビルドされる。**本番ブランチは今 `claude/kind-gates-v8ykzh`**
-- main へマージしたら、Pages の本番ブランチを `main` に切り替える（API: `PATCH /accounts/{id}/pages/projects/sakuratalk-call` で `production_branch` と `source.config.production_branch`）。`app.js?v=6` / `style.css?v=5` は上げ済み
+- 通話ページは Cloudflare Pages `sakuratalk-call`（GitHub 連携、ビルド `sh scripts/build-call.sh`、出力 `dist-call`）で https://sakuratalk-call.pages.dev/ に公開済み。`main` に push すると自動でビルドされる（本番ブランチ `main`、ほかのブランチのプレビューはオフ）
+- 2026-11-15 に main へマージ済み（アプリにも 📹/📞 ボタンが出ている）
 - 実機テスト: iOS 12 の Safari でのカメラ・H.264、ホーム画面アプリから `target=_blank` で Safari が開くか、モバイル回線（TURN 経由）
 - 家族グループの通話は未対応（全員どうしを直接つなぐ形は iOS 12 の端末に重い）
 
