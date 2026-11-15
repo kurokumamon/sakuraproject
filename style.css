@@ -120,3 +120,20 @@ header.bar > * + * { margin-left: 8px; }
   position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0;
   background: #e53935; color: #fff; font-size: 16px; font-weight: 700;
 }
+
+/* でんわ */
+header.bar button.call { font-size: 22px; padding: 4px 6px; }
+.call-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 50;
+  background: rgba(59, 42, 48, .55);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.call-box { width: 100%; max-width: 360px; background: #fff5f8; border-radius: 20px; padding: 24px 20px; }
+.call-icon { font-size: 56px; text-align: center; }
+.call-icon.ringing { -webkit-animation: ring 1s infinite; animation: ring 1s infinite; }
+@-webkit-keyframes ring { 0%, 100% { -webkit-transform: rotate(0); } 25% { -webkit-transform: rotate(-12deg); } 75% { -webkit-transform: rotate(12deg); } }
+@keyframes ring { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-12deg); } 75% { transform: rotate(12deg); } }
+a.big-link {
+  display: block; width: 100%; padding: 16px; border-radius: 14px; text-align: center; text-decoration: none;
+  background: #43a047; color: #fff; font-weight: 700; font-size: 18px;
+}

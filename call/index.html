@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>さくらトーク でんわ</title>
+  <meta name="theme-color" content="#3b2a30">
+  <link rel="stylesheet" href="call.css?v=1">
+</head>
+<body>
+  <video id="remote" playsinline autoplay></video>
+  <video id="local" playsinline autoplay muted></video>
+  <div id="panel">
+    <div id="peer"></div>
+    <div id="status">よみこみちゅう…</div>
+    <div id="actions"></div>
+  </div>
+  <div id="controls" hidden>
+    <button id="mic" class="ctl" aria-label="マイク">🎙️<span>マイク</span></button>
+    <button id="cam" class="ctl" aria-label="カメラ">📷<span>カメラ</span></button>
+    <button id="hangup" class="ctl end" aria-label="おわる">✕<span>おわる</span></button>
+  </div>
+  <script type="module" src="call.js?v=1"></script>
+</body>
+</html>

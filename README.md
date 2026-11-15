@@ -15,6 +15,9 @@
 | `supabase/migrations/001_init.sql` | テーブル、アクセス制御、招待まわりの関数 |
 | `supabase/migrations/002_push.sql` | メッセージ追加時に通知用の関数を呼ぶトリガー |
 | `supabase/functions/push/index.ts` | プッシュ通知を送る Edge Function |
+| `supabase/migrations/004_calls.sql` | 通話の部屋・トークン・着信通知 |
+| `supabase/functions/call/index.ts` | 通話ページ用（トークン確認と TURN 認証情報の発行） |
+| `call/` / `scripts/build-call.sh` | 通話ページ（別オリジンに置く。Safari で開く） |
 
 ## セットアップ
 
@@ -47,6 +50,10 @@ iOS 12 以降、Android の Chrome。
 - プッシュ通知は iOS 16.4 以降のみ。それより古い iPhone では、アプリを開いている間だけメッセージが届く。
 - iOS 12 で動かすため、`?.` や `??` などの新しい構文と、iOS 12 にない API（`replaceChildren`、Pointer Events、flex の `gap` など）は使わない。追加したら `lib/compat.js` でおぎなう。
 
+## でんわ（ビデオ・音声）
+
+1対1のトークの右上の 📹 / 📞 から かけます。iOS 12 のホーム画面アプリではカメラが使えないため、通話は別オリジンの通話ページを Safari で開いて行います（ログイン状態は引きつげないので、アプリが発行した短時間だけ有効なトークンを URL で渡します）。中継には Cloudflare の TURN を使います。
+
 ## 未実装
 
-- ボイスメッセージ、通話、位置共有
+- ボイスメッセージ、家族グループでの通話、位置共有

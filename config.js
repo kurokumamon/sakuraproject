@@ -5,3 +5,6 @@ export const SUPABASE_ANON_KEY = 'sb_publishable_unoN-CxeJoJ8JzbYbTrCJA_aJJOoMeO
 
 // プッシュ通知用の公開鍵 (公開して問題ありません。対になる秘密鍵は Supabase のシークレットにあります)
 export const VAPID_PUBLIC_KEY = 'BGI3irx2vFWfFZ_qjHJnVHYRQ-G1BWpr0av6kxzbnjG3uCS1MdeaRHTevWGLL1UwBOxlr1_LWwJbdDCH9h2ikc0';
+
+// 通話ページの URL (Cloudflare Pages。アプリとは別オリジンにして Safari で開かせる。call/ と scripts/build-call.sh を参照)
+export const CALL_URL = 'https://sakuratalk-call.pages.dev/';

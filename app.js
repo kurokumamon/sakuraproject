@@ -1,7 +1,7 @@
 // さくらトーク: 家族専用メッセンジャー (ビルド不要の静的 PWA)
 import { uuid } from './lib/compat.js?v=1'; // 古い iPhone 向けのおぎない (いちばん最初に読みこむ)
-import { createClient } from './lib/supa.js?v=1';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC_KEY } from './config.js';
+import { createClient } from './lib/supa.js?v=2';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, VAPID_PUBLIC_KEY, CALL_URL } from './config.js?v=2';
 
 const app = document.getElementById('app');
 const toastEl = document.getElementById('toast');
@@ -69,7 +69,9 @@ const state = { me: null, family: null, members: [], channels: [], onVisible: nu
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && state.onVisible) state.onVisible();
+  if (document.visibilityState !== 'visible') return;
+  if (state.onVisible) state.onVisible();
+  checkRinging();
 });
 
 function cleanup() {
@@ -113,6 +115,7 @@ async function boot() {
   if (!me && session.user.is_anonymous && joinCode && !joinTried) return joinFromLink();
   if (!me) return session.user.is_anonymous ? viewChildJoin() : viewCreateFamily();
   state.me = me;
+  watchCalls();
   return viewHome();
 }
 
@@ -259,6 +262,7 @@ function viewChildJoin() {
 
 async function logout() {
   cleanup();
+  stopWatchingCalls();
   await sb.auth.signOut();
   state.me = null;
   viewWelcome();
@@ -384,7 +388,7 @@ async function viewHome() {
           if (e) throw e;
           id = data;
         }
-        await viewChat(id, m.display_name);
+        await viewChat(id, m.display_name, m);
       }));
     }
     if (mem.data.length <= 1 && me.role === 'parent') {
@@ -437,7 +441,7 @@ async function shrink(file) {
   }
 }
 
-async function viewChat(convId, title) {
+async function viewChat(convId, title, peer) {
   cleanup();
   const me = state.me;
   const names = Object.fromEntries(state.members.map((m) => [m.id, m.display_name]));
@@ -543,10 +547,14 @@ async function viewChat(convId, title) {
     }
   });
 
+  // 1対1で、相手が参加ずみのときだけ でんわ できる
+  const canCall = peer && peer.user_id;
   show(
     h('header', { class: 'bar' },
       h('button', { onclick: viewHome }, '‹ もどる'),
-      h('h1', null, title)),
+      h('h1', null, title),
+      canCall && h('button', { class: 'call', 'aria-label': 'ビデオでんわ', onclick: busy(() => startCall(convId, peer, true)) }, '📹'),
+      canCall && h('button', { class: 'call', 'aria-label': 'でんわ', onclick: busy(() => startCall(convId, peer, false)) }, '📞')),
     list,
     h('div', { class: 'composer' },
       h('label', { class: 'icon', 'aria-label': 'しゃしんを送る' }, '📷', file),
@@ -567,6 +575,107 @@ async function viewChat(convId, title) {
     .subscribe());
   state.onVisible = load;
   await load();
+}
+
+// ---------- でんわ ----------
+// 通話そのものは別オリジンの通話ページ (call/) で行う。iOS 12 のホーム画面アプリではカメラが使えないため、
+// リンクは target=_blank で開いて Safari に渡す。ログイン状態は引きつげないので、短時間だけ有効なトークンを URL で渡す。
+
+const callLink = (token) => CALL_URL + '#t=' + token;
+let callOverlay = null;   // { el, callId }
+let callChannel = null;
+let ringTimer = null;
+
+function closeCallOverlay(callId) {
+  if (!callOverlay || (callId && callOverlay.callId !== callId)) return;
+  callOverlay.el.remove();
+  callOverlay = null;
+  clearTimeout(ringTimer);
+}
+
+function openCallOverlay(callId, ...children) {
+  closeCallOverlay();
+  const el = h('div', { class: 'call-overlay' }, h('div', { class: 'call-box stack' }, ...children));
+  document.body.append(el);
+  callOverlay = { el, callId };
+  return el;
+}
+
+// 通話ページを開くリンク (ボタンの見た目)。押したら この画面は とじる
+function callButton(label, token, callId) {
+  return h('a', {
+    class: 'big-link', href: callLink(token), target: '_blank', rel: 'noopener',
+    onclick: () => setTimeout(() => closeCallOverlay(callId), 300),
+  }, label);
+}
+
+async function startCall(convId, peer, video) {
+  const { data, error } = await sb.rpc('start_call', { conv: convId, with_video: video });
+  if (error) throw error;
+  const callId = data.call_id;
+  openCallOverlay(callId,
+    h('div', { class: 'call-icon' }, video ? '📹' : '📞'),
+    h('h2', { class: 'center' }, `${peer.display_name} に でんわ`),
+    h('p', { class: 'center muted' }, 'でんわの がめんは Safari で ひらきます。'),
+    callButton(video ? '📹 かける' : '📞 かける', data.token, callId),
+    h('button', { class: 'big sub', onclick: busy(async () => {
+      await sb.rpc('decline_call', { target_call: callId });
+      closeCallOverlay(callId);
+    }) }, 'やめる'));
+}
+
+async function showIncoming(call) {
+  if (callOverlay && callOverlay.callId === call.id) return;
+  if (!state.members.length) {
+    const { data } = await sb.from('members').select('id,display_name,role,user_id').order('created_at');
+    if (data) state.members = data;
+  }
+  const caller = state.members.find((m) => m.id === call.caller_id);
+  const name = caller ? caller.display_name : 'かぞく';
+  const slot = h('div', null, h('button', { class: 'big', disabled: true }, 'じゅんびちゅう…'));
+  openCallOverlay(call.id,
+    h('div', { class: 'call-icon ringing' }, call.video ? '📹' : '📞'),
+    h('h2', { class: 'center' }, `${name} から ${call.video ? 'ビデオでんわ' : 'でんわ'}`),
+    slot,
+    h('button', { class: 'big sub', onclick: busy(async () => {
+      await sb.rpc('decline_call', { target_call: call.id });
+      closeCallOverlay(call.id);
+    }) }, 'でない'));
+  // 出るときに すぐ開けるよう、トークンを先にもらっておく (リンクは押したその場で開かないと止められるため)
+  const { data: token, error } = await sb.rpc('call_token', { target_call: call.id });
+  if (!callOverlay || callOverlay.callId !== call.id) return;
+  if (error) { closeCallOverlay(call.id); return toast(errText(error)); }
+  slot.replaceChildren(callButton(call.video ? '📹 でる' : '📞 でる', token, call.id));
+  clearTimeout(ringTimer);
+  ringTimer = setTimeout(() => closeCallOverlay(call.id), 60000); // 呼び出しは 60 秒まで
+}
+
+// アプリを開いているあいだ、自分あての着信を待つ (iOS 12 はプッシュ通知が来ないため)
+function watchCalls() {
+  if (callChannel) return;
+  callChannel = sb.channel('calls-' + state.me.id)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'calls', filter: `callee_id=eq.${state.me.id}` },
+      (p) => {
+        const c = p.new;
+        if (c.status === 'ringing') showIncoming(c);
+        else closeCallOverlay(c.id);
+      })
+    .subscribe();
+  checkRinging();
+}
+
+function stopWatchingCalls() {
+  if (callChannel) sb.removeChannel(callChannel);
+  callChannel = null;
+  closeCallOverlay();
+}
+
+// 開いたとき・もどってきたときに、かかってきている電話がないか確かめる
+async function checkRinging() {
+  if (!state.me) return;
+  const { data } = await sb.rpc('my_ringing_call');
+  if (data && data.id) showIncoming(data);
 }
 
 // ---------- スワイプで削除 ----------
