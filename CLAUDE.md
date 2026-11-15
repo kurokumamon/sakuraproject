@@ -32,7 +32,7 @@
 - プッシュ通知は iOS 16.4 以降のみ。iOS 12 ではアプリを開いている間だけ届く（`pushBanner()` は非対応端末では何も出さない）
 
 - 通話ページ: `call/`（`index.html` / `call.js` / `call.css`）。`scripts/build-call.sh` で `dist-call/` にまとめて Cloudflare Pages に出す（`lib/` と `config.js` も一緒にコピーされる）。URL は `config.js` の `CALL_URL`
-- Cloudflare: アカウント ID は API の `GET /accounts` で取れる。TURN キー `sakuraproject-2` を使用中（`sakuraproject` は秘密の値を取りそこねた使えないキー。ユーザーの了承後に削除）。Pages プロジェクト `sakura-call`（直接アップロード用）を作成済み
+- Cloudflare: アカウント ID は API の `GET /accounts` で取れる。TURN キー `sakuraproject-2` を使用中
 - Supabase 管理 API（`api.supabase.com`）と Cloudflare API（`api.cloudflare.com`）のトークンは、クラウド環境「sakuraproject」のネットワークシークレットに入っている（プロキシが自動で付ける）。
   - **注意**: プロキシは `Authorization` を上書きするので、`wrangler pages deploy` はアップロード用の一時トークンが消されて失敗する
   - Edge Function のデプロイは `POST /v1/projects/{ref}/functions/deploy?slug=...`（multipart）、SQL は `POST /v1/projects/{ref}/database/query`
@@ -42,7 +42,6 @@
 
 - できている: 親の登録・家族作成、招待QR／コードでの子供参加（QR から開いてホーム画面に追加すると自動参加）、1対1・家族グループのチャット、写真、既読、通知（iOS 16.4+）、未参加メンバーのスワイプ削除、最初の画面の使い方
 - 親は実機でログイン済み。子供の端末はこれから参加
-- 片付け待ち: ストレージ `chat-images/386aa299-1959-4100-b4b5-68f4ba5d27b2/__test__.jpg`（4バイトのテスト用ファイル。ユーザーの了承後に削除）
 
 ## ビデオ通話（作業ブランチ `claude/kind-gates-v8ykzh`、main には未マージ）
 
