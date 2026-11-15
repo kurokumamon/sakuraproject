@@ -48,8 +48,8 @@
 できていること（本番 Supabase ＋ Chromium 2台で確認済み）: 1対1のトークの 📹/📞 ボタン → かける画面 → 相手のアプリに着信画面（Realtime）→ 両方が通話ページ（`target=_blank` で Safari）で双方向ビデオ、再読み込みしても再接続、切ると相手も終了、出ない/取り消し/60秒で不在。
 
 残り:
-- **通話ページの公開先が未定**（プロキシのせいで wrangler が使えない）。案: Cloudflare Pages の GitHub 連携（ユーザーがダッシュボードで GitHub アプリを入れる → `sakuratalk-call` プロジェクトをビルドコマンド `sh scripts/build-call.sh`、出力 `dist-call` で作る）。`CALL_URL` は今 `https://sakuratalk-call.pages.dev/` を仮に入れてある
-- 公開後に main へマージ（`app.js?v=6` / `style.css?v=5` は上げ済み）
+- 通話ページは Cloudflare Pages `sakuratalk-call`（GitHub 連携、ビルド `sh scripts/build-call.sh`、出力 `dist-call`）で https://sakuratalk-call.pages.dev/ に公開済み。push すると自動でビルドされる。**本番ブランチは今 `claude/kind-gates-v8ykzh`**
+- main へマージしたら、Pages の本番ブランチを `main` に切り替える（API: `PATCH /accounts/{id}/pages/projects/sakuratalk-call` で `production_branch` と `source.config.production_branch`）。`app.js?v=6` / `style.css?v=5` は上げ済み
 - 実機テスト: iOS 12 の Safari でのカメラ・H.264、ホーム画面アプリから `target=_blank` で Safari が開くか、モバイル回線（TURN 経由）
 - 家族グループの通話は未対応（全員どうしを直接つなぐ形は iOS 12 の端末に重い）
 
